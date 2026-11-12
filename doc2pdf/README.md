@@ -31,6 +31,15 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 4. Click **New** and add the folder path (`C:\tools`).
 5. Click **OK** to save, then restart your terminal. You can now run `doc2pdf_convert.ps1` from any directory without `.\`.
 
+## Alternative: Cross-Platform One-Liner (LibreOffice)
+
+If you are on macOS/Linux or do not have Microsoft Word installed, you can achieve similar batch conversion using **LibreOffice** from your terminal:
+
+```bash
+soffice --headless --convert-to pdf *.docx
+```
+*(Note: Requires LibreOffice to be installed and `soffice` added to your system PATH.)*
+
 ---
 
 # doc2pdf_convert.ps1
@@ -65,4 +74,13 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 3. **「ユーザー環境変数」** のリストから **`Path`** を選択し、**「編集...」** をクリックします。
 4. **「新規」** をクリックし、スクリプトを置いたフォルダのパス（`C:\tools`）を追加します。
 5. **「OK」** をクリックして保存し、ターミナル（PowerShell）を再起動します。これで、どのディレクトリからでも先頭の `.\` なしで `doc2pdf_convert.ps1` を実行できるようになります。
+
+## 代替手段：LibreOffice を使ったワンライナー（Mac / Linux 対応）
+
+macOS や Linux 環境の場合、または Microsoft Word がインストールされていない場合は、**LibreOffice** を使ってターミナルから以下の1行を実行することでも一括変換が可能です。
+
+```bash
+soffice --headless --convert-to pdf *.docx
+```
+*(※あらかじめ LibreOffice をインストールし、`soffice` コマンドにパスが通っている必要があります)*
 
