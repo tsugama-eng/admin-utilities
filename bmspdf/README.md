@@ -1,4 +1,4 @@
-# bmspdf - Offline PDF Splitter & Merger / 完全オフライン PDF分割・結合ツール
+# bmspdf - Browser-based Merger & Splitter of PDF / PDF分割・結合ブラウザアプリ
 
 A web browser app to **split** and **merge** PDF files.  
 **PDF分割・結合** ブラウザアプリです。
