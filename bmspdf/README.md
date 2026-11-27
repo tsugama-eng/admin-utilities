@@ -5,7 +5,7 @@ A web browser app to **split** and **merge** PDF files.
 
 ## Live Demo / Web版（GitHub Pages）
 
-- <a href="https://tsugama-eng.github.io/admin-utilities/bmspdf/">`https://tsugama-eng.github.io/admin-utilities/bmspdf/`</a>
+- <a href="https://tsugama-eng.github.io/admin-utilities/bmspdf/" target="_blank">`https://tsugama-eng.github.io/admin-utilities/bmspdf/`</a>
 
 *(Note: Even when accessed via GitHub Pages, all PDF processing happens locally in your browser. No files are uploaded to any server.)*  
 *(※GitHub Pages経由で開いた場合でも、PDFの処理はすべてブラウザ内で行われ、サーバーへのファイル送信は発生しません)*
