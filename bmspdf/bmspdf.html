@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline PDF Splitter & Merger / 完全オフライン PDF分割・結合ツール</title>
+  <!-- Load local pdf-lib.min.js for 100% offline execution -->
+  <script src="pdf-lib.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; max-width: 780px; margin: 30px auto; padding: 0 20px; line-height: 1.6; color: #222; background: #fff; }
+    h1 { font-size: 22px; border-bottom: 2px solid #0066cc; padding-bottom: 10px; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #555; margin-bottom: 20px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+    .tab-btn { background: #f0f2f5; color: #333; border: 1px solid #ccc; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: bold; }
+    .tab-btn.active { background: #0066cc; color: #fff; border-color: #0066cc; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 18px; margin-bottom: 18px; background: #fafafa; }
+    .card h3 { margin-top: 0; font-size: 16px; color: #0055aa; }
+    label { display: block; margin: 10px 0 4px; cursor: pointer; }
+    input[type="text"], input[type="number"] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    input[type="number"] { width: 65px; }
+    input[type="text"] { width: 280px; }
+    button.primary { background: #0066cc; color: #fff; border: none; padding: 12px 20px; border-radius: 5px; font-size: 15px; cursor: pointer; font-weight: bold; }
+    button.primary:disabled { background: #aaa; cursor: not-allowed; }
+    button.primary:hover:not(:disabled) { background: #0052a3; }
+    .note { font-size: 13px; color: #555; margin-top: 6px; }
+    .status { margin-top: 15px; padding: 12px; border-radius: 5px; background: #eef6ff; font-weight: bold; display: none; }
+    .sub-option { margin-left: 24px; margin-top: 6px; padding: 10px; background: #fff; border-left: 3px solid #0066cc; }
+    /* Merge file list styles */
+    .file-list { list-style: none; padding: 0; margin: 12px 0; }
+    .file-item { display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid #ddd; padding: 8px 12px; border-radius: 5px; margin-bottom: 6px; font-size: 14px; }
+    .file-item-controls button { background: #eee; border: 1px solid #ccc; border-radius: 4px; padding: 3px 8px; cursor: pointer; margin-left: 4px; font-size: 12px; }
+    .file-item-controls button:hover { background: #ddd; }
+    .file-item-controls button.del { color: #c00; }
+  </style>
+</head>
+<body>
+
+  <h1>Offline PDF Splitter & Merger / 完全オフライン PDF分割・結合ツール</h1>
+  <div class="subtitle">
+    100% client-side processing. No files are ever uploaded to any server.<br>
+    ブラウザ内完結・外部通信ゼロ。機密書類でも安全に分割・結合できます。
+  </div>
+
+  <!-- Mode Switch Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-target="splitTab">分割 / Split PDF</button>
+    <button class="tab-btn" data-target="mergeTab">結合 / Merge PDFs</button>
+  </div>
+
+  <!-- ==================== SPLIT TAB ==================== -->
+  <div id="splitTab" class="tab-content active">
+    <div class="card">
+      <h3>1. Select a PDF File / PDFファイルを選択</h3>
+      <input type="file" id="splitFileInput" accept="application/pdf">
+      <div id="splitFileInfo" class="note">No file selected. / ファイルが選択されていません。</div>
+    </div>
+
+    <div class="card">
+      <h3>2. Choose Split / Extract Pattern / 分割・抽出パターンを指定</h3>
+
+      <label>
+        <input type="radio" name="splitMode" value="odd_even" checked>
+        <strong>Odd & Even Pages / 奇数・偶数ページで2分割</strong>
+      </label>
+      <div class="sub-option">
+        Outputs two PDFs: Odd pages (1, 3, 5...) and Even pages (2, 4, 6...).<br>
+        奇数ページまとめ（1,3,5...）と 偶数ページまとめ（2,4,6...）の2ファイルを出力します。
+      </div>
+
+      <label>
+        <input type="radio" name="splitMode" value="modulo">
+        <strong>Arithmetic Sequence (an + b) / 等間隔・剰余パターン（an + b ページ目）を抽出</strong>
+      </label>
+      <div class="sub-option">
+        Extract pages matching: <input type="number" id="modA" value="3" min="1"> <code>n + </code>
+        <input type="number" id="modB" value="2" min="1"> (<code>n = 0, 1, 2...</code>)
+        <div class="note">
+          Example: <code>3n + 2</code> extracts pages 2, 5, 8, 11... into a single PDF.<br>
+          例：「3n + 2」→ 2, 5, 8, 11... ページ目を1つのPDFに抽出します。
+        </div>
+      </div>
+
+      <label>
+        <input type="radio" name="splitMode" value="chunk">
+        <strong>Fixed Page Intervals / 指定ページ数ごとに連続分割</strong>
+      </label>
+      <div class="sub-option">
+        Split every <input type="number" id="chunkSize" value="2" min="1"> page(s) / ページごとに別々のPDFへ分割
+        <div class="note">
+          Example: <code>1</code> splits every page individually; <code>2</code> splits into 2-page chunks.<br>
+          例：「1」なら全ページバラバラに保存。「2」なら2ページずつ分割保存。
+        </div>
+      </div>
+
+      <label>
+        <input type="radio" name="splitMode" value="custom">
+        <strong>Custom Pattern / 自由パターン指定（範囲・飛びページ・複数グループ）</strong>
+      </label>
+      <div class="sub-option">
+        <input type="text" id="customPattern" placeholder="e.g. / 例: 1-3, 5 / 4, 6-8">
+        <div class="note">
+          • Use comma (<code>,</code>) to combine pages into one PDF (e.g. <code>1-3, 5</code>).<br>
+          • Use slash (<code>/</code>) to split into separate PDFs (e.g. <code>1-2 / 3-5</code>).<br>
+          • カンマ（<code>,</code>）で1つのPDFに結合、スラッシュ（<code>/</code>）で別ファイルに分割出力します。
+        </div>
+      </div>
+    </div>
+
+    <button id="splitRunBtn" class="primary" disabled>Split & Download / 分割を実行してダウンロード</button>
+    <div id="splitStatus" class="status"></div>
+  </div>
+
+  <!-- ==================== MERGE TAB ==================== -->
+  <div id="mergeTab" class="tab-content">
+    <div class="card">
+      <h3>1. Add PDF Files / 結合するPDFを追加（複数選択可）</h3>
+      <input type="file" id="mergeFileInput" accept="application/pdf" multiple>
+      <div class="note">
+        You can select multiple files at once or add more files later.<br>
+        複数ファイルをまとめて選択するか、後から追加して順番を並べ替えられます。
+      </div>
+      <ul id="mergeFileList" class="file-list"></ul>
+    </div>
+
+    <div class="card">
+      <h3>2. Output Filename / 出力ファイル名</h3>
+      <input type="text" id="mergeOutName" value="merged_document" placeholder="merged_document"> <code>.pdf</code>
+    </div>
+
+    <button id="mergeRunBtn" class="primary" disabled>Merge & Download / 結合を実行してダウンロード</button>
+    <div id="mergeStatus" class="status"></div>
+  </div>
+
+<script>
+const { PDFDocument } = PDFLib;
+
+// ==========================================
+// Tab Switching / タブ切り替え
+// ==========================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.target).classList.add('active');
+  });
+});
+
+// Common Utilities / 共通ヘルパー
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function triggerDownload(uint8Bytes, filename) {
+  const blob = new Blob([uint8Bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ==========================================
+// SPLIT LOGIC / 分割処理
+// ==========================================
+let splitSrcBytes = null;
+let splitTotalPages = 0;
+let splitBaseName = "document";
+
+const splitFileInput = document.getElementById('splitFileInput');
+const splitFileInfo = document.getElementById('splitFileInfo');
+const splitRunBtn = document.getElementById('splitRunBtn');
+const splitStatus = document.getElementById('splitStatus');
+
+splitFileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  splitBaseName = file.name.replace(/\.pdf$/i, '');
+  splitStatus.style.display = 'none';
+  splitFileInfo.textContent = "Loading... / 読み込み中...";
+
+  try {
+    splitSrcBytes = new Uint8Array(await file.arrayBuffer());
+    const doc = await PDFDocument.load(splitSrcBytes, { ignoreEncryption: true });
+    splitTotalPages = doc.getPageCount();
+    splitFileInfo.innerHTML = `Loaded / 読込完了: <strong>${file.name}</strong> (Total / 全 <strong>${splitTotalPages}</strong> pages / ページ)`;
+    splitRunBtn.disabled = false;
+  } catch (err) {
+    splitSrcBytes = null;
+    splitRunBtn.disabled = true;
+    splitFileInfo.innerHTML = `<span style="color:red;">Error / エラー: ${err.message}</span>`;
+  }
+});
+
+function parseCustomGroups(inputStr, maxPages) {
+  const groups = [];
+  const rawGroups = inputStr.split('/');
+  for (const g of rawGroups) {
+    const indices = [];
+    const parts = g.split(',');
+    for (let p of parts) {
+      p = p.trim();
+      if (!p) continue;
+      if (p.includes('-')) {
+        const [s, e] = p.split('-').map(Number);
+        if (s >= 1 && e <= maxPages && s <= e) {
+          for (let i = s; i <= e; i++) indices.push(i - 1);
+        }
+      } else {
+        const num = Number(p);
+        if (num >= 1 && num <= maxPages) indices.push(num - 1);
+      }
+    }
+    if (indices.length > 0) groups.push(indices);
+  }
+  return groups;
+}
+
+splitRunBtn.addEventListener('click', async () => {
+  if (!splitSrcBytes) return;
+  const mode = document.querySelector('input[name="splitMode"]:checked').value;
+  const tasks = [];
+
+  if (mode === 'odd_even') {
+    const odds = [], evens = [];
+    for (let i = 0; i < splitTotalPages; i++) {
+      ((i + 1) % 2 === 1 ? odds : evens).push(i);
+    }
+    if (odds.length) tasks.push({ suffix: '_odd', indices: odds });
+    if (evens.length) tasks.push({ suffix: '_even', indices: evens });
+
+  } else if (mode === 'modulo') {
+    const a = parseInt(document.getElementById('modA').value, 10);
+    const b = parseInt(document.getElementById('modB').value, 10);
+    if (isNaN(a) || a < 1 || isNaN(b) || b < 1) {
+      alert("Please enter integers >= 1 for a and b. / a と b には1以上の整数を入力してください。");
+      return;
+    }
+    const indices = [];
+    for (let n = 0; ; n++) {
+      const pageNum = a * n + b;
+      if (pageNum > splitTotalPages) break;
+      indices.push(pageNum - 1);
+    }
+    if (indices.length === 0) {
+      alert("No matching pages found. / 条件に一致するページがありませんでした。");
+      return;
+    }
+    tasks.push({ suffix: `_${a}n+${b}`, indices });
+
+  } else if (mode === 'chunk') {
+    const size = parseInt(document.getElementById('chunkSize').value, 10);
+    if (isNaN(size) || size < 1) {
+      alert("Please enter an integer >= 1. / 1以上の整数を入力してください。");
+      return;
+    }
+    let part = 1;
+    for (let i = 0; i < splitTotalPages; i += size) {
+      const indices = [];
+      for (let j = i; j < Math.min(i + size, splitTotalPages); j++) indices.push(j);
+      const pad = String(part++).padStart(3, '0');
+      tasks.push({ suffix: `_part${pad}`, indices });
+    }
+
+  } else if (mode === 'custom') {
+    const pat = document.getElementById('customPattern').value;
+    const groups = parseCustomGroups(pat, splitTotalPages);
+    if (groups.length === 0) {
+      alert("Please enter valid page ranges (e.g. 1-3, 5 / 6-10). / 有効なページ指定を入力してください。");
+      return;
+    }
+    groups.forEach((indices, idx) => {
+      const suffix = groups.length === 1 ? '_extracted' : `_group${String(idx + 1).padStart(2, '0')}`;
+      tasks.push({ suffix, indices });
+    });
+  }
+
+  splitRunBtn.disabled = true;
+  splitStatus.style.display = 'block';
+  splitStatus.textContent = `Processing (${tasks.length} file(s))... / 分割処理を開始します（全 ${tasks.length} ファイル）...`;
+
+  try {
+    const srcDoc = await PDFDocument.load(splitSrcBytes, { ignoreEncryption: true });
+    for (let i = 0; i < tasks.length; i++) {
+      const t = tasks[i];
+      splitStatus.textContent = `Generating (${i + 1} / ${tasks.length}): ${splitBaseName}${t.suffix}.pdf`;
+      const newDoc = await PDFDocument.create();
+      const copiedPages = await newDoc.copyPages(srcDoc, t.indices);
+      copiedPages.forEach(p => newDoc.addPage(p));
+      const outBytes = await newDoc.save();
+      triggerDownload(outBytes, `${splitBaseName}${t.suffix}.pdf`);
+      if (tasks.length > 1) await sleep(250);
+    }
+    splitStatus.textContent = `Done! Exported ${tasks.length} file(s). / 完了しました！（${tasks.length} 個のPDFを出力）`;
+  } catch (err) {
+    splitStatus.textContent = `Error / エラー: ${err.message}`;
+  } finally {
+    splitRunBtn.disabled = false;
+  }
+});
+
+// ==========================================
+// MERGE LOGIC / 結合処理
+// ==========================================
+let mergeQueue = []; // [{ id, name, pageCount, bytes }]
+let nextMergeId = 1;
+
+const mergeFileInput = document.getElementById('mergeFileInput');
+const mergeFileList = document.getElementById('mergeFileList');
+const mergeRunBtn = document.getElementById('mergeRunBtn');
+const mergeStatus = document.getElementById('mergeStatus');
+
+mergeFileInput.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  mergeStatus.style.display = 'none';
+
+  for (const file of files) {
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      mergeQueue.push({
+        id: nextMergeId++,
+        name: file.name,
+        pageCount: doc.getPageCount(),
+        bytes
+      });
+    } catch (err) {
+      alert(`Failed to load ${file.name} / 読み込み失敗: ${err.message}`);
+    }
+  }
+  mergeFileInput.value = ''; // allow re-selecting same file
+  renderMergeList();
+});
+
+function renderMergeList() {
+  mergeFileList.innerHTML = '';
+  mergeQueue.forEach((item, index) => {
+    const li = document.createElement('li');
+    li.className = 'file-item';
+    li.innerHTML = `
+      <span><strong>${index + 1}.</strong> ${item.name} <span class="note">(${item.pageCount}p)</span></span>
+      <div class="file-item-controls">
+        <button type="button" onclick="moveMergeItem(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" onclick="moveMergeItem(${index}, 1)" ${index === mergeQueue.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" class="del" onclick="removeMergeItem(${index})">✕</button>
+      </div>
+    `;
+    mergeFileList.appendChild(li);
+  });
+  mergeRunBtn.disabled = mergeQueue.length < 2;
+}
+
+window.moveMergeItem = (index, delta) => {
+  const target = index + delta;
+  if (target < 0 || target >= mergeQueue.length) return;
+  const temp = mergeQueue[index];
+  mergeQueue[index] = mergeQueue[target];
+  mergeQueue[target] = temp;
+  renderMergeList();
+};
+
+window.removeMergeItem = (index) => {
+  mergeQueue.splice(index, 1);
+  renderMergeList();
+};
+
+mergeRunBtn.addEventListener('click', async () => {
+  if (mergeQueue.length < 2) return;
+  const rawOutName = document.getElementById('mergeOutName').value.trim() || 'merged_document';
+  const outFilename = rawOutName.toLowerCase().endsWith('.pdf') ? rawOutName : `${rawOutName}.pdf`;
+
+  mergeRunBtn.disabled = true;
+  mergeStatus.style.display = 'block';
+  mergeStatus.textContent = "Merging PDFs... / PDFを結合中...";
+
+  try {
+    const mergedDoc = await PDFDocument.create();
+    for (let i = 0; i < mergeQueue.length; i++) {
+      const item = mergeQueue[i];
+      mergeStatus.textContent = `Merging (${i + 1} / ${mergeQueue.length}): ${item.name}`;
+      const srcDoc = await PDFDocument.load(item.bytes, { ignoreEncryption: true });
+      const copiedPages = await mergedDoc.copyPages(srcDoc, srcDoc.getPageIndices());
+      copiedPages.forEach(p => mergedDoc.addPage(p));
+    }
+    const outBytes = await mergedDoc.save();
+    triggerDownload(outBytes, outFilename);
+    mergeStatus.textContent = `Done! Saved as ${outFilename} / 完了しました！（${outFilename} を出力）`;
+  } catch (err) {
+    mergeStatus.textContent = `Error / エラー: ${err.message}`;
+  } finally {
+    mergeRunBtn.disabled = mergeQueue.length < 2;
+  }
+});
+</script>
+</body>
+</html>
